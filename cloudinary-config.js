@@ -1,8 +1,8 @@
 // cloudinary-config.js
 export const CLOUDINARY = {
   cloudName: "awasia",
-  uploadPreset: "dlwk13ady", // unsigned preset
-  folder: "products",        // optional
+  uploadPreset: "dlwk13ady",
+  folder: "products",
 };
 
 export const CLOUDINARY_UPLOAD_URL =

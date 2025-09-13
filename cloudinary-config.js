@@ -1,8 +1,8 @@
-// cloudinary-config.js
+// cloudinary-config.js (DL environment)
 export const CLOUDINARY = {
-  cloudName: "awasia",
-  uploadPreset: "awasia", // your unsigned preset (from your console)
-  // folder: "products",   // optional: uncomment if you want to group assets
+  cloudName: "awasia", // e.g., "dl-123abc" (copy from the DL env page)
+  uploadPreset: "dlwk13ady",       // your unsigned preset in DL env
+  // folder: "products",            // optional; only if your preset allows it
 };
 
 export const CLOUDINARY_UPLOAD_URL =

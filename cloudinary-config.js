@@ -2,7 +2,7 @@
 export const CLOUDINARY = {
   cloudName: "awasia",
   uploadPreset: "dlwk13ady", // unsigned preset
-  folder: "products",        // optional: groups assets in Cloudinary
+  folder: "products",        // optional
 };
 
 export const CLOUDINARY_UPLOAD_URL =

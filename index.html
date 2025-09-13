@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Awasia Creations</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#">
+        <span class="brand-mark">A</span><span class="brand-name">wasia Creations</span>
+      </a>
+
+      <nav aria-label="Primary" class="nav">
+        <input type="checkbox" id="menu-toggle" />
+        <label for="menu-toggle" class="menu-icon" aria-label="Open menu" aria-controls="nav-menu" aria-expanded="false">&#9776;</label>
+        <div id="nav-menu" class="menu">
+          <a href="#about">About</a>
+          <a href="#products">Products</a>
+          <a href="#best-selling">Best Selling</a>
+          <a href="#contact">Contact</a>
+          <a class="admin-link" href="admin.html" rel="noopener">Admin</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero" role="img" aria-label="Luxury fashion banner">
+    <div class="overlay">
+      <h1>Specialist in Churidar &amp; Kurtis</h1>
+      <p>Be yourself. Trends change—style stays.</p>
+      <a href="#products" class="btn cta">Shop New Arrivals</a>
+    </div>
+  </section>
+
+  <main>
+    <section id="about" class="about section container">
+      <div class="section-head">
+        <h2>About Us</h2>
+        <p class="lede">
+          At <strong>Awasia Creations</strong>, every garment is a crafted statement—modern elegance meeting cultural heritage.
+        </p>
+      </div>
+      <p>
+        We use premium materials and precise tailoring to design timeless pieces that elevate everyday wear.
+        Discover curated collections made to fit beautifully and last.
+      </p>
+    </section>
+
+    <section id="products" class="products section container">
+      <div class="section-head">
+        <h2>Products</h2>
+        <div class="filters">
+          <select id="categoryFilter" aria-label="Filter by category">
+            <option value="">All Categories</option>
+          </select>
+          <input id="searchInput" type="search" placeholder="Search products..." aria-label="Search products"/>
+        </div>
+      </div>
+
+      <div id="productsGrid" class="product-grid" aria-live="polite"></div>
+      <div id="productsEmpty" class="empty hidden">No products found.</div>
+      <div id="productsLoading" class="loading">Loading products…</div>
+    </section>
+
+    <section id="best-selling" class="products section container">
+      <div class="section-head">
+        <h2>Best Selling</h2>
+      </div>
+      <div id="bestGrid" class="product-grid" aria-live="polite"></div>
+      <div id="bestEmpty" class="empty hidden">No best sellers yet.</div>
+      <div id="bestLoading" class="loading">Loading best sellers…</div>
+    </section>
+
+    <section id="contact" class="contact section container">
+      <div class="section-head">
+        <h2>Contact</h2>
+      </div>
+      <div class="contact-grid">
+        <a href="https://www.instagram.com/awasiacreations?utm_source=ig_web_button_share_sheet&igsh=N2l5cXhiZnRlcTk4" class="btn social" target="_blank" rel="noopener noreferrer">Instagram</a>
+        <a href="https://wa.me/23051234567" class="btn social" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+        <a href="https://www.facebook.com/awasiacreations" class="btn social" target="_blank" rel="noopener noreferrer">Facebook</a>
+        <a href="https://tiktok.com/@yourprofile" class="btn social" target="_blank" rel="noopener noreferrer">TikTok</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; <span id="year"></span> Awasia Creations • All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Firebase (Compat for simplicity) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="script.js" defer></script>
+</body>
+</html>

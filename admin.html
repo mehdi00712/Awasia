@@ -1,44 +1,33 @@
+<!-- admin.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Awasia Admin</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body class="admin-body">
-  <header class="site-header">
-    <div class="container header-inner">
-      <a class="brand" href="index.html"><span class="brand-mark">A</span><span class="brand-name">wasia Creations</span></a>
-      <nav class="nav">
-        <a class="btn subtle" href="index.html">← Back to site</a>
-        <button id="logoutBtn" class="btn subtle">Logout</button>
-      </nav>
-    </div>
-  </header>
-
   <main class="container admin">
     <section id="authSection" class="card">
       <h2>Admin Login</h2>
-      <p class="muted">Email/password only. Access is restricted to approved emails.</p>
       <form id="loginForm" class="form-grid">
-        <label>Email<input type="email" id="email" required/></label>
-        <label>Password<input type="password" id="password" required/></label>
+        <label>Email<input type="email" id="email" required /></label>
+        <label>Password<input type="password" id="password" required /></label>
         <button type="submit" class="btn">Login</button>
       </form>
-      <p class="small muted">Tip: enable Email/Password in Firebase Authentication first.</p>
     </section>
 
     <section id="consoleSection" class="hidden">
       <div class="card">
         <h2>New Product</h2>
         <form id="productForm" class="form-grid">
-          <label>Name<input type="text" id="pName" required/></label>
+          <label>Name<input type="text" id="pName" required /></label>
           <label>Price (MUR)<input type="number" id="pPrice" min="0" step="0.01" required/></label>
-          <label>Category<input type="text" id="pCategory" placeholder="e.g., Kurti, Churidar" required/></label>
-          <label class="checkbox"><input type="checkbox" id="pBest"/> Mark as Best Selling</label>
+          <label>Category<input type="text" id="pCategory" required/></label>
+          <label class="checkbox"><input type="checkbox" id="pBest"/> Best Seller</label>
           <label>Image<input type="file" id="pImage" accept="image/*" required/></label>
+          <progress id="uploadProgress" value="0" max="100" style="width:100%;"></progress>
           <button type="submit" class="btn">Save Product</button>
         </form>
       </div>
@@ -46,7 +35,7 @@
       <div class="card">
         <div class="section-head">
           <h2>Products</h2>
-          <input id="adminSearch" class="search" placeholder="Search by name/category…"/>
+          <input id="adminSearch" class="search" placeholder="Search…"/>
         </div>
         <div id="adminProducts" class="admin-grid"></div>
         <div id="adminEmpty" class="empty hidden">No products yet.</div>
@@ -55,18 +44,6 @@
     </section>
   </main>
 
-  <footer class="site-footer">
-    <div class="container">
-      <p>&copy; <span id="year"></span> Awasia Creations • Admin</p>
-    </div>
-  </footer>
-
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-  <script src="firebase-config.js"></script>
-  <script src="admin.js" defer></script>
+  <script type="module" src="admin.js"></script>
 </body>
 </html>

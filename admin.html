@@ -9,7 +9,9 @@
 <body class="admin-body">
   <header class="site-header">
     <div class="container header-inner">
-      <a class="brand" href="index.html"><span class="brand-mark">A</span><span class="brand-name">wasia Creations</span></a>
+      <a class="brand" href="index.html">
+        <span class="brand-mark">A</span><span class="brand-name">wasia Creations</span>
+      </a>
       <nav class="nav">
         <a class="btn subtle" href="index.html">← Back to site</a>
         <button id="logoutBtn" class="btn subtle">Logout</button>
@@ -18,7 +20,7 @@
   </header>
 
   <main class="container admin">
-    <!-- Auth -->
+    <!-- Login -->
     <section id="authSection" class="card">
       <h2>Admin Login</h2>
       <form id="loginForm" class="form-grid">
@@ -26,7 +28,7 @@
         <label>Password<input type="password" id="password" required /></label>
         <button type="submit" class="btn">Login</button>
       </form>
-      <p class="small muted">Email/Password must be enabled in Firebase Auth.</p>
+      <p class="small muted">Enable Email/Password in Firebase Auth.</p>
     </section>
 
     <!-- Console -->
@@ -62,7 +64,7 @@
     </div>
   </footer>
 
-  <!-- Load modules -->
+  <!-- Scripts (CDN ESM + local modules) -->
   <script type="module" src="firebase-config.js"></script>
   <script type="module" src="cloudinary-config.js"></script>
   <script type="module" src="admin.js"></script>

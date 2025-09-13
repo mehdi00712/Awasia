@@ -103,7 +103,7 @@ async function uploadToCloudinary(file) {
   return { url: res.secure_url, publicId: res.public_id };
 }
 
-// ---- Create product ----
+// ---- Create produt ----
 productForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const file = pImage.files[0];

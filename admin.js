@@ -18,25 +18,25 @@ const allowedUIDs = ["rLhRmo1MCcOcZK1J77k2CunqKtT2"];
 const yearEl = document.querySelector("#year");
 if (yearEl) yearEl.textContent = new Date().getFullYear();
 
-const authSection   = document.querySelector("#authSection");
-const consoleSection= document.querySelector("#consoleSection");
-const loginForm     = document.querySelector("#loginForm");
-const emailInput    = document.querySelector("#email");
-const passwordInput = document.querySelector("#password");
-const logoutBtn     = document.querySelector("#logoutBtn");
+const authSection    = document.querySelector("#authSection");
+const consoleSection = document.querySelector("#consoleSection");
+const loginForm      = document.querySelector("#loginForm");
+const emailInput     = document.querySelector("#email");
+const passwordInput  = document.querySelector("#password");
+const logoutBtn      = document.querySelector("#logoutBtn");
 
-const productForm   = document.querySelector("#productForm");
-const pName         = document.querySelector("#pName");
-const pPrice        = document.querySelector("#pPrice");
-const pCategory     = document.querySelector("#pCategory");
-const pBest         = document.querySelector("#pBest");
-const pImage        = document.querySelector("#pImage");
-const uploadProgress= document.querySelector("#uploadProgress");
+const productForm    = document.querySelector("#productForm");
+const pName          = document.querySelector("#pName");
+const pPrice         = document.querySelector("#pPrice");
+const pCategory      = document.querySelector("#pCategory");
+const pBest          = document.querySelector("#pBest");
+const pImage         = document.querySelector("#pImage");
+const uploadProgress = document.querySelector("#uploadProgress");
 
-const adminSearch   = document.querySelector("#adminSearch");
-const adminProducts = document.querySelector("#adminProducts");
-const adminEmpty    = document.querySelector("#adminEmpty");
-const adminLoading  = document.querySelector("#adminLoading");
+const adminSearch    = document.querySelector("#adminSearch");
+const adminProducts  = document.querySelector("#adminProducts");
+const adminEmpty     = document.querySelector("#adminEmpty");
+const adminLoading   = document.querySelector("#adminLoading");
 
 // Helpers
 function showConsole(show) {
@@ -57,7 +57,9 @@ loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
     await signInWithEmailAndPassword(auth, emailInput.value.trim(), passwordInput.value);
-  } catch (err) { alert(err.message); }
+  } catch (err) {
+    alert(err.message);
+  }
 });
 
 logoutBtn.addEventListener("click", () => signOut(auth));
@@ -67,14 +69,22 @@ async function uploadToCloudinary(file) {
   const fd = new FormData();
   fd.append("file", file);
   fd.append("upload_preset", CLOUDINARY.uploadPreset);
-  if (CLOUDINARY.folder) fd.append("folder", CLOUDINARY.folder);
+  // If you want to force a folder and your preset allows it, uncomment next line:
+  // if (CLOUDINARY.folder) fd.append("folder", CLOUDINARY.folder);
 
   const xhr = new XMLHttpRequest();
   const p = new Promise((resolve, reject) => {
     xhr.open("POST", CLOUDINARY_UPLOAD_URL);
-    xhr.onload  = () => (xhr.status >= 200 && xhr.status < 300)
-      ? resolve(JSON.parse(xhr.responseText))
-      : reject(new Error(`Cloudinary upload failed: ${xhr.status}`));
+    xhr.onload = () => {
+      let body = {};
+      try { body = JSON.parse(xhr.responseText); } catch (_) {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+      else {
+        const msg = body?.error?.message || `Cloudinary upload failed: ${xhr.status}`;
+        console.error("Cloudinary upload error:", xhr.status, body);
+        reject(new Error(msg));
+      }
+    };
     xhr.onerror = () => reject(new Error("Network error during upload"));
     xhr.upload.onprogress = (e) => {
       if (uploadProgress && e.lengthComputable) {
@@ -111,7 +121,9 @@ productForm.addEventListener("submit", async (e) => {
     productForm.reset();
     uploadProgress.value = 0;
     alert("Product saved.");
-  } catch (err) { alert(err.message); }
+  } catch (err) {
+    alert(err.message);
+  }
 });
 
 // List products (live)
@@ -126,7 +138,8 @@ onSnapshot(qProducts, (snap) => {
   adminEmpty.classList.add("hidden");
 
   const term = (adminSearch.value || "").toLowerCase().trim();
-  const items = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+  const items = snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
     .filter(p => !term || [p.name, p.category].filter(Boolean).join(" ").toLowerCase().includes(term));
 
   adminProducts.innerHTML = items.map(p => `
@@ -152,7 +165,7 @@ onSnapshot(qProducts, (snap) => {
   console.error(err);
 });
 
-adminSearch.addEventListener("input", () => {/* re-renders on next snapshot */});
+adminSearch.addEventListener("input", () => { /* re-renders on next snapshot */ });
 
 // Actions
 adminProducts.addEventListener("click", async (e) => {
@@ -188,12 +201,14 @@ adminProducts.addEventListener("click", async (e) => {
     } else if (action === "delete") {
       if (!confirm("Delete this product from the site?")) return;
       await deleteDoc(ref);
-      // To delete Cloudinary image, do it server-side with API key/secret.
+      // Note: Deleting the image from Cloudinary requires a signed server call.
     }
-  } catch (err) { alert(err.message); }
+  } catch (err) {
+    alert(err.message);
+  }
 });
 
-// Change image
+// Change image (re-upload to Cloudinary)
 adminProducts.addEventListener("change", async (e) => {
   const input = e.target;
   if (input.getAttribute("data-action") !== "changeImage") return;
@@ -215,6 +230,10 @@ adminProducts.addEventListener("change", async (e) => {
       updatedBy: user.uid,
     });
     alert("Image updated.");
-  } catch (err) { alert(err.message); }
-  finally { input.value = ""; uploadProgress.value = 0; }
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    input.value = "";
+    uploadProgress.value = 0;
+  }
 });

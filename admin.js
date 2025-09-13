@@ -1,8 +1,9 @@
-import { auth, db, storage } from "./firebase-config.js";
+// admin.js
+import { auth, db } from "./firebase-config.js";
 import {
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
 } from "firebase/auth";
 import {
   collection,
@@ -12,36 +13,40 @@ import {
   doc,
   onSnapshot,
   serverTimestamp,
-  getDoc
+  getDoc,
+  query,
+  orderBy,
 } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { CLOUDINARY, CLOUDINARY_UPLOAD_URL } from "./cloudinary-config.js";
 
-// Restrict admin access by UID
-const allowedUIDs = ["rLhRmo1MCcOcZK1J77k2CunqKtT2"];
+const allowedUIDs = ["rLhRmo1MCcOcZK1J77k2CunqKtT2"]; // YOU
 
 // Elements
+const authSection = document.querySelector("#authSection");
+const consoleSection = document.querySelector("#consoleSection");
 const loginForm = document.querySelector("#loginForm");
 const emailInput = document.querySelector("#email");
 const passwordInput = document.querySelector("#password");
 const logoutBtn = document.querySelector("#logoutBtn");
-const authSection = document.querySelector("#authSection");
-const consoleSection = document.querySelector("#consoleSection");
 
 const productForm = document.querySelector("#productForm");
+const pName = document.querySelector("#pName");
+const pPrice = document.querySelector("#pPrice");
+const pCategory = document.querySelector("#pCategory");
+const pBest = document.querySelector("#pBest");
+const pImage = document.querySelector("#pImage");
+const uploadProgress = document.querySelector("#uploadProgress");
+
+const adminSearch = document.querySelector("#adminSearch");
 const adminProducts = document.querySelector("#adminProducts");
 const adminEmpty = document.querySelector("#adminEmpty");
 const adminLoading = document.querySelector("#adminLoading");
 
-// Auth state
 onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    showConsole(false);
-    return;
-  }
+  if (!user) return showConsole(false);
   if (!allowedUIDs.includes(user.uid)) {
     alert("You do not have admin rights.");
-    signOut(auth);
-    return;
+    return signOut(auth);
   }
   showConsole(true);
 });
@@ -59,94 +64,193 @@ loginForm.addEventListener("submit", async (e) => {
   }
 });
 
-logoutBtn.addEventListener("click", () => signOut(auth));
+logoutBtn?.addEventListener("click", () => signOut(auth));
 
 function showConsole(show) {
-  if (show) {
-    authSection.classList.add("hidden");
-    consoleSection.classList.remove("hidden");
-  } else {
-    authSection.classList.remove("hidden");
-    consoleSection.classList.add("hidden");
-  }
+  authSection.classList.toggle("hidden", show);
+  consoleSection.classList.toggle("hidden", !show);
 }
 
-// Add product
+// ---- Cloudinary Upload (unsigned) ----
+async function uploadToCloudinary(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("upload_preset", CLOUDINARY.uploadPreset);
+  if (CLOUDINARY.folder) fd.append("folder", CLOUDINARY.folder);
+
+  // Optional: show progress using xhr (fetch doesn't expose progress)
+  const xhr = new XMLHttpRequest();
+  const promise = new Promise((resolve, reject) => {
+    xhr.open("POST", CLOUDINARY_UPLOAD_URL);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(JSON.parse(xhr.responseText));
+      } else {
+        reject(new Error(`Cloudinary upload failed: ${xhr.status}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Network error during upload"));
+    xhr.upload.onprogress = (e) => {
+      if (!uploadProgress) return;
+      if (e.lengthComputable) {
+        uploadProgress.value = Math.round((e.loaded / e.total) * 100);
+      }
+    };
+    xhr.send(fd);
+  });
+
+  const res = await promise; // { secure_url, public_id, ... }
+  return { url: res.secure_url, publicId: res.public_id };
+}
+
+// ---- Create product ----
 productForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const name = document.querySelector("#pName").value.trim();
-  const price = Number(document.querySelector("#pPrice").value);
-  const category = document.querySelector("#pCategory").value.trim();
-  const bestSelling = document.querySelector("#pBest").checked;
-  const file = document.querySelector("#pImage").files[0];
-
+  const file = pImage.files[0];
   if (!file) {
     alert("Please select an image.");
     return;
   }
 
   try {
-    const docRef = await addDoc(collection(db, "products"), {
-      name,
-      price,
-      category,
-      bestSelling,
-      imageUrl: "",
-      createdAt: serverTimestamp()
+    uploadProgress.value = 0;
+    const { url, publicId } = await uploadToCloudinary(file);
+
+    await addDoc(collection(db, "products"), {
+      name: pName.value.trim(),
+      price: Number(pPrice.value || 0),
+      category: pCategory.value.trim(),
+      bestSelling: !!pBest.checked,
+      imageUrl: url,
+      cloudinaryPublicId: publicId,
+      createdAt: serverTimestamp(),
     });
 
-    const fileRef = ref(storage, `products/${docRef.id}-${file.name}`);
-    await uploadBytes(fileRef, file);
-    const url = await getDownloadURL(fileRef);
-
-    await updateDoc(docRef, { imageUrl: url, imagePath: `products/${docRef.id}-${file.name}` });
-    alert("Product saved!");
     productForm.reset();
+    uploadProgress.value = 0;
+    alert("Product saved.");
   } catch (err) {
     console.error(err);
-    alert("Failed to save product: " + err.message);
+    alert(err.message);
   }
 });
 
-// Load products live
-onSnapshot(collection(db, "products"), (snapshot) => {
-  adminLoading.classList.add("hidden");
-  if (snapshot.empty) {
-    adminEmpty.classList.remove("hidden");
-    adminProducts.innerHTML = "";
-    return;
-  }
-  adminEmpty.classList.add("hidden");
-  adminProducts.innerHTML = snapshot.docs.map((docSnap) => {
-    const p = docSnap.data();
-    return `
-      <div class="admin-item" data-id="${docSnap.id}">
-        <img src="${p.imageUrl}" alt="${p.name}">
+// ---- List products ----
+const q = query(collection(db, "products"), orderBy("createdAt", "desc"));
+onSnapshot(
+  q,
+  (snap) => {
+    adminLoading.classList.add("hidden");
+    if (snap.empty) {
+      adminEmpty.classList.remove("hidden");
+      adminProducts.innerHTML = "";
+      return;
+    }
+    adminEmpty.classList.add("hidden");
+
+    const term = (adminSearch.value || "").toLowerCase().trim();
+    const items = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((p) => {
+        if (!term) return true;
+        return [p.name, p.category].filter(Boolean).join(" ").toLowerCase().includes(term);
+      });
+
+    adminProducts.innerHTML = items
+      .map(
+        (p) => `
+      <div class="admin-item" data-id="${p.id}">
+        <img src="${p.imageUrl || ""}" alt="${p.name}">
         <div>
-          <strong>${p.name}</strong><br>
-          <span>MUR ${p.price}</span> • ${p.category || ""}
+          <strong>${p.name}</strong>
+          <div class="muted small">MUR ${Number(p.price).toFixed(2)} • ${p.category || "-"}</div>
           ${p.bestSelling ? '<span class="badge">Best Seller</span>' : ""}
         </div>
-        <button data-action="delete">Delete</button>
-      </div>
-    `;
-  }).join("");
+        <div class="admin-actions">
+          <button class="btn subtle" data-action="toggleBest">${p.bestSelling ? "Unmark Best" : "Mark Best"}</button>
+          <label class="btn subtle">Change Image
+            <input type="file" hidden accept="image/*" data-action="changeImage" data-id="${p.id}"/>
+          </label>
+          <button class="btn subtle" data-action="edit">Edit</button>
+          <button class="btn subtle danger" data-action="delete">Delete</button>
+        </div>
+      </div>`
+      )
+      .join("");
+  },
+  (err) => {
+    adminLoading.textContent = "Failed to load.";
+    console.error(err);
+  }
+);
+
+adminSearch.addEventListener("input", () => {
+  // triggers re-render on next snapshot; simple approach for brevity
 });
 
-// Delete product
+// ---- Item actions ----
 adminProducts.addEventListener("click", async (e) => {
-  if (e.target.dataset.action === "delete") {
-    const id = e.target.closest(".admin-item").dataset.id;
-    if (!confirm("Delete this product?")) return;
+  const action = e.target.getAttribute("data-action");
+  if (!action) return;
 
-    const productRef = doc(db, "products", id);
-    const productSnap = await getDoc(productRef);
-    const product = productSnap.data();
+  const item = e.target.closest(".admin-item");
+  const id = item?.getAttribute("data-id");
+  if (!id) return;
+  const ref = doc(db, "products", id);
 
-    await deleteDoc(productRef);
-    if (product.imagePath) {
-      const imgRef = ref(storage, product.imagePath);
-      await deleteObject(imgRef).catch(() => {});
+  try {
+    if (action === "toggleBest") {
+      const snap = await getDoc(ref);
+      const cur = !!snap.data()?.bestSelling;
+      await updateDoc(ref, { bestSelling: !cur });
     }
+
+    if (action === "edit") {
+      const snap = await getDoc(ref);
+      const p = snap.data();
+      const name = prompt("Name:", p.name ?? "");
+      if (name === null) return;
+      const price = prompt("Price (MUR):", p.price ?? 0);
+      if (price === null) return;
+      const category = prompt("Category:", p.category ?? "");
+      await updateDoc(ref, {
+        name: name.trim(),
+        price: Number(price || 0),
+        category: category.trim(),
+      });
+    }
+
+    if (action === "delete") {
+      if (!confirm("Delete this product from the site?")) return;
+      // NOTE: This deletes from Firestore ONLY.
+      // Deleting the image from Cloudinary requires a secure server-side call (API key/secret).
+      await deleteDoc(ref);
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+// ---- Change image (re-upload to Cloudinary, update Firestore URL) ----
+adminProducts.addEventListener("change", async (e) => {
+  const input = e.target;
+  if (input.getAttribute("data-action") !== "changeImage") return;
+  const id = input.getAttribute("data-id");
+  const file = input.files[0];
+  if (!file) return;
+
+  try {
+    uploadProgress.value = 0;
+    const { url, publicId } = await uploadToCloudinary(file);
+    await updateDoc(doc(db, "products", id), {
+      imageUrl: url,
+      cloudinaryPublicId: publicId,
+    });
+    alert("Image updated.");
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    input.value = "";
+    uploadProgress.value = 0;
   }
 });

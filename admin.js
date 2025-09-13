@@ -4,7 +4,7 @@ import {
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-} from "firebase/auth";
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 import {
   collection,
   addDoc,
@@ -16,12 +16,16 @@ import {
   getDoc,
   query,
   orderBy,
-} from "firebase/firestore";
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { CLOUDINARY, CLOUDINARY_UPLOAD_URL } from "./cloudinary-config.js";
 
-const allowedUIDs = ["rLhRmo1MCcOcZK1J77k2CunqKtT2"]; // YOU
+// Restrict writes to your UID
+const allowedUIDs = ["rLhRmo1MCcOcZK1J77k2CunqKtT2"];
 
 // Elements
+const yearEl = document.querySelector("#year");
+if (yearEl) yearEl.textContent = new Date().getFullYear();
+
 const authSection = document.querySelector("#authSection");
 const consoleSection = document.querySelector("#consoleSection");
 const loginForm = document.querySelector("#loginForm");
@@ -42,34 +46,31 @@ const adminProducts = document.querySelector("#adminProducts");
 const adminEmpty = document.querySelector("#adminEmpty");
 const adminLoading = document.querySelector("#adminLoading");
 
+// Helpers
+function showConsole(show) {
+  authSection.classList.toggle("hidden", show);
+  consoleSection.classList.toggle("hidden", !show);
+}
+function requireAdmin(user) {
+  return user && allowedUIDs.includes(user.uid);
+}
+
+// Auth state
 onAuthStateChanged(auth, (user) => {
-  if (!user) return showConsole(false);
-  if (!allowedUIDs.includes(user.uid)) {
-    alert("You do not have admin rights.");
-    return signOut(auth);
-  }
+  if (!requireAdmin(user)) { showConsole(false); return; }
   showConsole(true);
 });
 
 loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   try {
-    await signInWithEmailAndPassword(
-      auth,
-      emailInput.value.trim(),
-      passwordInput.value
-    );
+    await signInWithEmailAndPassword(auth, emailInput.value.trim(), passwordInput.value);
   } catch (err) {
     alert(err.message);
   }
 });
 
-logoutBtn?.addEventListener("click", () => signOut(auth));
-
-function showConsole(show) {
-  authSection.classList.toggle("hidden", show);
-  consoleSection.classList.toggle("hidden", !show);
-}
+logoutBtn.addEventListener("click", () => signOut(auth));
 
 // ---- Cloudinary Upload (unsigned) ----
 async function uploadToCloudinary(file) {
@@ -78,52 +79,48 @@ async function uploadToCloudinary(file) {
   fd.append("upload_preset", CLOUDINARY.uploadPreset);
   if (CLOUDINARY.folder) fd.append("folder", CLOUDINARY.folder);
 
-  // Optional: show progress using xhr (fetch doesn't expose progress)
   const xhr = new XMLHttpRequest();
   const promise = new Promise((resolve, reject) => {
     xhr.open("POST", CLOUDINARY_UPLOAD_URL);
     xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(JSON.parse(xhr.responseText));
-      } else {
-        reject(new Error(`Cloudinary upload failed: ${xhr.status}`));
-      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
+      else reject(new Error(`Cloudinary upload failed: ${xhr.status}`));
     };
     xhr.onerror = () => reject(new Error("Network error during upload"));
     xhr.upload.onprogress = (e) => {
-      if (!uploadProgress) return;
-      if (e.lengthComputable) {
+      if (uploadProgress && e.lengthComputable) {
         uploadProgress.value = Math.round((e.loaded / e.total) * 100);
       }
     };
     xhr.send(fd);
   });
-
-  const res = await promise; // { secure_url, public_id, ... }
-  return { url: res.secure_url, publicId: res.public_id };
+  return promise; // { secure_url, public_id, ... }
 }
 
-// ---- Create produt ----
+// ---- Create product ----
 productForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+  const user = auth.currentUser;
+  if (!requireAdmin(user)) return alert("Not authorized.");
+
   const file = pImage.files[0];
-  if (!file) {
-    alert("Please select an image.");
-    return;
-  }
+  if (!file) return alert("Please select an image.");
 
   try {
     uploadProgress.value = 0;
-    const { url, publicId } = await uploadToCloudinary(file);
+    const res = await uploadToCloudinary(file);
+    const imageUrl = res.secure_url;
+    const cloudinaryPublicId = res.public_id;
 
     await addDoc(collection(db, "products"), {
       name: pName.value.trim(),
       price: Number(pPrice.value || 0),
       category: pCategory.value.trim(),
       bestSelling: !!pBest.checked,
-      imageUrl: url,
-      cloudinaryPublicId: publicId,
+      imageUrl,
+      cloudinaryPublicId,
       createdAt: serverTimestamp(),
+      createdBy: user.uid,
     });
 
     productForm.reset();
@@ -135,63 +132,56 @@ productForm.addEventListener("submit", async (e) => {
   }
 });
 
-// ---- List products ----
-const q = query(collection(db, "products"), orderBy("createdAt", "desc"));
-onSnapshot(
-  q,
-  (snap) => {
-    adminLoading.classList.add("hidden");
-    if (snap.empty) {
-      adminEmpty.classList.remove("hidden");
-      adminProducts.innerHTML = "";
-      return;
-    }
-    adminEmpty.classList.add("hidden");
-
-    const term = (adminSearch.value || "").toLowerCase().trim();
-    const items = snap.docs
-      .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((p) => {
-        if (!term) return true;
-        return [p.name, p.category].filter(Boolean).join(" ").toLowerCase().includes(term);
-      });
-
-    adminProducts.innerHTML = items
-      .map(
-        (p) => `
-      <div class="admin-item" data-id="${p.id}">
-        <img src="${p.imageUrl || ""}" alt="${p.name}">
-        <div>
-          <strong>${p.name}</strong>
-          <div class="muted small">MUR ${Number(p.price).toFixed(2)} • ${p.category || "-"}</div>
-          ${p.bestSelling ? '<span class="badge">Best Seller</span>' : ""}
-        </div>
-        <div class="admin-actions">
-          <button class="btn subtle" data-action="toggleBest">${p.bestSelling ? "Unmark Best" : "Mark Best"}</button>
-          <label class="btn subtle">Change Image
-            <input type="file" hidden accept="image/*" data-action="changeImage" data-id="${p.id}"/>
-          </label>
-          <button class="btn subtle" data-action="edit">Edit</button>
-          <button class="btn subtle danger" data-action="delete">Delete</button>
-        </div>
-      </div>`
-      )
-      .join("");
-  },
-  (err) => {
-    adminLoading.textContent = "Failed to load.";
-    console.error(err);
+// ---- List products (live) ----
+const qProducts = query(collection(db, "products"), orderBy("createdAt", "desc"));
+onSnapshot(qProducts, (snap) => {
+  adminLoading.classList.add("hidden");
+  if (snap.empty) {
+    adminEmpty.classList.remove("hidden");
+    adminProducts.innerHTML = "";
+    return;
   }
-);
+  adminEmpty.classList.add("hidden");
+
+  const term = (adminSearch.value || "").toLowerCase().trim();
+  const items = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((p) => !term || [p.name, p.category].filter(Boolean).join(" ").toLowerCase().includes(term));
+
+  adminProducts.innerHTML = items.map((p) => `
+    <div class="admin-item" data-id="${p.id}">
+      <img src="${p.imageUrl || ""}" alt="${p.name}">
+      <div>
+        <strong>${p.name}</strong>
+        <div class="muted small">MUR ${Number(p.price).toFixed(2)} • ${p.category || "-"}</div>
+        ${p.bestSelling ? '<span class="badge">Best Seller</span>' : ''}
+      </div>
+      <div class="admin-actions">
+        <button class="btn subtle" data-action="toggleBest">${p.bestSelling ? "Unmark Best" : "Mark Best"}</button>
+        <label class="btn subtle">Change Image
+          <input type="file" hidden accept="image/*" data-action="changeImage" data-id="${p.id}"/>
+        </label>
+        <button class="btn subtle" data-action="edit">Edit</button>
+        <button class="btn subtle danger" data-action="delete">Delete</button>
+      </div>
+    </div>
+  `).join("");
+}, (err) => {
+  adminLoading.textContent = "Failed to load.";
+  console.error(err);
+});
 
 adminSearch.addEventListener("input", () => {
-  // triggers re-render on next snapshot; simple approach for brevity
+  // Re-render happens on next snapshot automatically; this keeps code simple.
 });
 
 // ---- Item actions ----
 adminProducts.addEventListener("click", async (e) => {
   const action = e.target.getAttribute("data-action");
   if (!action) return;
+
+  const user = auth.currentUser;
+  if (!requireAdmin(user)) return alert("Not authorized.");
 
   const item = e.target.closest(".admin-item");
   const id = item?.getAttribute("data-id");
@@ -222,8 +212,8 @@ adminProducts.addEventListener("click", async (e) => {
 
     if (action === "delete") {
       if (!confirm("Delete this product from the site?")) return;
-      // NOTE: This deletes from Firestore ONLY.
-      // Deleting the image from Cloudinary requires a secure server-side call (API key/secret).
+      // NOTE: This deletes Firestore doc only.
+      // For Cloudinary asset deletion, do a server-side call with API key/secret.
       await deleteDoc(ref);
     }
   } catch (err) {
@@ -231,20 +221,25 @@ adminProducts.addEventListener("click", async (e) => {
   }
 });
 
-// ---- Change image (re-upload to Cloudinary, update Firestore URL) ----
+// ---- Change image (Cloudinary re-upload) ----
 adminProducts.addEventListener("change", async (e) => {
   const input = e.target;
   if (input.getAttribute("data-action") !== "changeImage") return;
+  const user = auth.currentUser;
+  if (!requireAdmin(user)) return alert("Not authorized.");
+
   const id = input.getAttribute("data-id");
   const file = input.files[0];
   if (!file) return;
 
   try {
     uploadProgress.value = 0;
-    const { url, publicId } = await uploadToCloudinary(file);
+    const res = await uploadToCloudinary(file);
     await updateDoc(doc(db, "products", id), {
-      imageUrl: url,
-      cloudinaryPublicId: publicId,
+      imageUrl: res.secure_url,
+      cloudinaryPublicId: res.public_id,
+      updatedAt: serverTimestamp(),
+      updatedBy: user.uid,
     });
     alert("Image updated.");
   } catch (err) {
